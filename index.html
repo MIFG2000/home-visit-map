@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>家庭訪問マップ</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <style>
+    :root{
+      --blue:#2563eb;
+      --blue-dark:#1d4ed8;
+      --gray:#f3f4f6;
+      --border:#d1d5db;
+      --text:#111827;
+      --danger:#dc2626;
+      --ok:#16a34a;
+      --highlight:#dbeafe;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:sans-serif;
+      color:var(--text);
+      background:#fff;
+    }
+
+    .screen{
+      display:none;
+      min-height:100vh;
+    }
+    .screen.active{
+      display:block;
+    }
+
+    .container{
+      max-width:1100px;
+      margin:0 auto;
+      padding:16px;
+    }
+
+    h1,h2,h3{
+      margin:0 0 12px;
+    }
+
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .center-box{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#f9fafb;
+      padding:16px;
+    }
+
+    .login-card{
+      width:min(420px,100%);
+    }
+
+    .field{
+      margin-bottom:12px;
+    }
+
+    label{
+      display:block;
+      margin-bottom:6px;
+      font-weight:700;
+    }
+
+    input, textarea, button, select{
+      width:100%;
+      font-size:16px;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+    }
+
+    textarea{
+      resize:vertical;
+      min-height:90px;
+    }
+
+    button{
+      cursor:pointer;
+      background:var(--blue);
+      color:#fff;
+      border:none;
+      font-weight:700;
+    }
+
+    button:hover{
+      background:var(--blue-dark);
+    }
+
+    .secondary{
+      background:#6b7280;
+    }
+    .secondary:hover{
+      background:#4b5563;
+    }
+
+    .danger{
+      background:var(--danger);
+    }
+    .danger:hover{
+      background:#b91c1c;
+    }
+
+    .success{
+      background:var(--ok);
+    }
+    .success:hover{
+      background:#15803d;
+    }
+
+    .menu-buttons{
+      display:grid;
+      gap:14px;
+      max-width:420px;
+      margin:28px auto 0;
+    }
+
+    .topbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+
+    .map-wrap{
+      position:relative;
+    }
+
+    .map-box{
+      height:70vh;
+      min-height:420px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+    }
+
+    #mapViewMap, #addMap{
+      height:100%;
+      width:100%;
+    }
+
+    .selected-name-badge{
+      position:absolute;
+      top:12px;
+      right:12px;
+      z-index:900;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:700;
+      box-shadow:0 2px 6px rgba(0,0,0,0.12);
+      max-width:60%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .map-controls{
+      display:grid;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .search-row{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+    }
+
+    .action-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    .action-row button{
+      width:auto;
+      min-width:160px;
+    }
+
+    .hint{
+      font-size:14px;
+      color:#4b5563;
+      margin-top:6px;
+    }
+
+    .message{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:10px;
+      background:#eff6ff;
+      border:1px solid #bfdbfe;
+      display:none;
+    }
+    .message.show{
+      display:block;
+    }
+
+    .list-box{
+      border:1px solid var(--border);
+      border-radius:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .list-item{
+      padding:12px;
+      border-bottom:1px solid var(--border);
+      cursor:pointer;
+    }
+    .list-item:last-child{
+      border-bottom:none;
+    }
+    .list-item:hover{
+      background:#f9fafb;
+    }
+    .list-item.selected{
+      background:var(--highlight);
+      font-weight:700;
+    }
+
+    .grid-3{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+
+    .grid-2{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+    }
+
+    .subsection{
+      margin-top:18px;
+    }
+
+    .muted{
+      color:#6b7280;
+      font-size:14px;
+    }
+
+    @media (max-width: 700px){
+      .grid-3,.grid-2,.search-row{
+        grid-template-columns:1fr;
+      }
+      .map-box{
+        height:62vh;
+        min-height:380px;
+      }
+      .selected-name-badge{
+        max-width:75%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ログイン -->
+  <section id="loginScreen" class="screen active">
+    <div class="center-box">
+      <div class="card login-card">
+        <h1>家庭訪問マップ</h1>
+        <p class="muted">合言葉を入力してください。</p>
+
+        <div class="field">
+          <label for="passInput">合言葉</label>
+          <input id="passInput" type="password" placeholder="合言葉を入力" />
+        </div>
+
+        <button id="loginBtn">ログイン</button>
+        <div id="loginError" class="message"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ホーム -->
+  <section id="homeScreen" class="screen">
+    <div class="container">
+      <div class="card">
+        <h2>ホーム</h2>
+        <p class="muted">使いたい画面を選んでください。</p>
+
+        <div class="menu-buttons">
+          <button id="goMapBtn">登録済み地図を見る</button>
+          <button id="goAddBtn">ピンを追加する</button>
+          <button id="goListBtn">一覧を見る</button>
+          <button id="logoutBtn" class="secondary">ログアウト</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 登録済み地図 -->
+  <section id="mapScreen" class="screen">
+    <div class="container">
+      <div class="topbar">
+        <h2>登録済み地図</h2>
+        <button id="backFromMapBtn" class="secondary" style="width:auto;">戻る</button>
+      </div>
+
+      <div class="card">
+        <div class="map-wrap">
+          <div id="selectedNameBadge" class="selected-name-badge">未選択</div>
+          <div id="mapViewMap" class="map-box"></div>
+        </div>
+        <div class="hint">ピンを選ぶと右上に氏名を表示します。地図上の何もない場所を1回タップ／クリックすると選択解除します。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ピン追加 -->
+  <section id="addScreen" class="screen">
+    <div class="container">
+      <div class="topbar">
+        <h2>ピンを追加</h2>
+        <button id="backFromAddBtn" class="secondary" style="width:auto;">戻る</button>
+      </div>
+
+      <div class="card">
+        <div class="map-controls">
+          <div class="search-row">
+            <input id="addressSearchInput" type="text" placeholder="住所を入力して検索" />
+            <button id="addressSearchBtn" style="width:auto;">住所検索</button>
+          </div>
+          <div class="hint">住所検索後、衛星写真に切り替えて家屋の位置を確認し、長押しで仮ピンを置いてください。</div>
+        </div>
+
+        <div class="map-wrap">
+          <div id="addMap" class="map-box"></div>
+        </div>
+
+        <div id="tempPinActions" class="action-row" style="display:none;">
+          <button id="toInputBtn" class="success" type="button">リストに情報を記入</button>
+          <button id="deleteTempPinBtn" class="danger" type="button">ピンを削除</button>
+        </div>
+
+        <div id="addMessage" class="message"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 一覧・入力 -->
+  <section id="listScreen" class="screen">
+    <div class="container">
+      <div class="topbar">
+        <h2>一覧</h2>
+        <button id="backFromListBtn" class="secondary" style="width:auto;">戻る</button>
+      </div>
+
+      <div class="card">
+        <h3>登録済み一覧</h3>
+        <p class="muted">学年 → 組 → 出席番号 の順で表示します。</p>
+        <div id="pinList" class="list-box"></div>
+
+        <div id="tempInputSection" class="subsection" style="display:none;">
+          <h3>新しいピンの情報入力</h3>
+          <p class="muted">仮ピンに対応する情報を入力して保存してください。</p>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="nameInput">氏名</label>
+              <input id="nameInput" type="text" />
+            </div>
+            <div class="field">
+              <label for="addressInput">住所</label>
+              <input id="addressInput" type="text" />
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div class="field">
+              <label for="gradeInput">学年</label>
+              <input id="gradeInput" type="number" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="classInput">組</label>
+              <input id="classInput" type="number" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="numberInput">出席番号</label>
+              <input id="numberInput" type="number" inputmode="numeric" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="memoInput">メモ</label>
+            <textarea id="memoInput"></textarea>
+          </div>
+
+          <div class="action-row">
+            <button id="savePinBtn" class="success" type="button">保存</button>
+            <button id="cancelTempInputBtn" class="secondary" type="button">入力をやめる</button>
+          </div>
+
+          <div id="saveMessage" class="message"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      doc,
+      deleteDoc
+    } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+
+    // ===== Firebase =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyCgMkAfMMTpQZ2ZmlDGWNw3kQ8UO68TQ-o",
+      authDomain: "kateihoumon-app-131a3.firebaseapp.com",
+      projectId: "kateihoumon-app-131a3",
+      storageBucket: "kateihoumon-app-131a3.firebasestorage.app",
+      messagingSenderId: "206193695594",
+      appId: "1:206193695594:web:f26cc429ed9bb8165e6313"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const pinsCollection = collection(db, "pins");
+
+    // ===== 合言葉 =====
+    // 必要なら変更してください
+    const APP_PASSWORD = "1234";
+
+    // ===== 画面要素 =====
+    const screens = {
+      login: document.getElementById("loginScreen"),
+      home: document.getElementById("homeScreen"),
+      map: document.getElementById("mapScreen"),
+      add: document.getElementById("addScreen"),
+      list: document.getElementById("listScreen")
+    };
+
+    const loginBtn = document.getElementById("loginBtn");
+    const passInput = document.getElementById("passInput");
+    const loginError = document.getElementById("loginError");
+
+    const goMapBtn = document.getElementById("goMapBtn");
+    const goAddBtn = document.getElementById("goAddBtn");
+    const goListBtn = document.getElementById("goListBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    const backFromMapBtn = document.getElementById("backFromMapBtn");
+    const backFromAddBtn = document.getElementById("backFromAddBtn");
+    const backFromListBtn = document.getElementById("backFromListBtn");
+
+    const selectedNameBadge = document.getElementById("selectedNameBadge");
+
+    const addressSearchInput = document.getElementById("addressSearchInput");
+    const addressSearchBtn = document.getElementById("addressSearchBtn");
+    const tempPinActions = document.getElementById("tempPinActions");
+    const toInputBtn = document.getElementById("toInputBtn");
+    const deleteTempPinBtn = document.getElementById("deleteTempPinBtn");
+    const addMessage = document.getElementById("addMessage");
+
+    const pinList = document.getElementById("pinList");
+    const tempInputSection = document.getElementById("tempInputSection");
+    const nameInput = document.getElementById("nameInput");
+    const addressInput = document.getElementById("addressInput");
+    const gradeInput = document.getElementById("gradeInput");
+    const classInput = document.getElementById("classInput");
+    const numberInput = document.getElementById("numberInput");
+    const memoInput = document.getElementById("memoInput");
+    const savePinBtn = document.getElementById("savePinBtn");
+    const cancelTempInputBtn = document.getElementById("cancelTempInputBtn");
+    const saveMessage = document.getElementById("saveMessage");
+
+    // ===== 状態 =====
+    let pinsData = [];
+    let selectedPinId = null;
+    let tempPinLatLng = null;
+    let tempMarker = null;
+    let mapView;
+    let addMap;
+    let mapViewMarkers = [];
+    let initializedMapView = false;
+    let initializedAddMap = false;
+
+    // ===== 画面切替 =====
+    function showScreen(name) {
+      Object.values(screens).forEach(screen => screen.classList.remove("active"));
+      screens[name].classList.add("active");
+
+      if (name === "map") {
+        initMapView();
+        setTimeout(() => mapView.invalidateSize(), 100);
+        renderMapViewPins();
+      }
+
+      if (name === "add") {
+        initAddMap();
+        setTimeout(() => addMap.invalidateSize(), 100);
+      }
+
+      if (name === "list") {
+        renderList();
+      }
+    }
+
+    function showMessage(el, text, isError = false) {
+      el.textContent = text;
+      el.classList.add("show");
+      el.style.background = isError ? "#fef2f2" : "#eff6ff";
+      el.style.borderColor = isError ? "#fecaca" : "#bfdbfe";
+    }
+
+    function clearMessage(el) {
+      el.textContent = "";
+      el.classList.remove("show");
+    }
+
+    // ===== 認証 =====
+    loginBtn.addEventListener("click", () => {
+      clearMessage(loginError);
+      const pass = passInput.value.trim();
+      if (pass !== APP_PASSWORD) {
+        showMessage(loginError, "合言葉が違います。", true);
+        return;
+      }
+      sessionStorage.setItem("homeVisitLoggedIn", "yes");
+      showScreen("home");
+    });
+
+    passInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loginBtn.click();
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      sessionStorage.removeItem("homeVisitLoggedIn");
+      showScreen("login");
+      passInput.value = "";
+    });
+
+    if (sessionStorage.getItem("homeVisitLoggedIn") === "yes") {
+      showScreen("home");
+    }
+
+    // ===== ボタン =====
+    goMapBtn.addEventListener("click", async () => {
+      await loadPins();
+      showScreen("map");
+    });
+
+    goAddBtn.addEventListener("click", () => {
+      clearTempPin();
+      showScreen("add");
+    });
+
+    goListBtn.addEventListener("click", async () => {
+      await loadPins();
+      showScreen("list");
+    });
+
+    backFromMapBtn.addEventListener("click", () => showScreen("home"));
+    backFromAddBtn.addEventListener("click", () => showScreen("home"));
+    backFromListBtn.addEventListener("click", () => showScreen("home"));
+
+    // ===== 地図レイヤー =====
+    function createBaseLayers() {
+      const normal = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 20,
+          attribution: "&copy; OpenStreetMap contributors"
+        }
+      );
+
+      const satellite = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxZoom: 20,
+          attribution: "Tiles &copy; Esri"
+        }
+      );
+
+      return { normal, satellite };
+    }
+
+    // ===== 登録済み地図 =====
+    function initMapView() {
+      if (initializedMapView) return;
+
+      mapView = L.map("mapViewMap", {
+        center: [31.9111, 131.4239],
+        zoom: 16
+      });
+
+      const baseLayers = createBaseLayers();
+      baseLayers.normal.addTo(mapView);
+
+      L.control.layers(
+        {
+          "通常地図": baseLayers.normal,
+          "衛星写真": baseLayers.satellite
+        },
+        null,
+        { collapsed: false }
+      ).addTo(mapView);
+
+      mapView.on("click", () => {
+        selectedPinId = null;
+        updateSelectedNameBadge();
+        renderList();
+        renderMapViewPins();
+      });
+
+      initializedMapView = true;
+    }
+
+    function updateSelectedNameBadge() {
+      const selected = pinsData.find(p => p.id === selectedPinId);
+      selectedNameBadge.textContent = selected ? selected.name : "未選択";
+    }
+
+    function clearMapViewMarkers() {
+      mapViewMarkers.forEach(marker => mapView.removeLayer(marker));
+      mapViewMarkers = [];
+    }
+
+    function renderMapViewPins() {
+      if (!mapView) return;
+
+      clearMapViewMarkers();
+      updateSelectedNameBadge();
+
+      pinsData.forEach(pin => {
+        const marker = L.marker([pin.lat, pin.lng]).addTo(mapView);
+        marker.bindPopup(
+          `<strong>${escapeHtml(pin.name || "")}</strong><br>${pin.grade || ""}年 ${pin.class || ""}組 ${pin.number || ""}番`
+        );
+
+        marker.on("click", (e) => {
+          selectedPinId = pin.id;
+          updateSelectedNameBadge();
+          renderList();
+          e.originalEvent?.stopPropagation?.();
+        });
+
+        if (pin.id === selectedPinId) {
+          marker.openPopup();
+        }
+
+        mapViewMarkers.push(marker);
+      });
+    }
+
+    // ===== 新規追加地図 =====
+    function initAddMap() {
+      if (initializedAddMap) return;
+
+      addMap = L.map("addMap", {
+        center: [31.9111, 131.4239],
+        zoom: 17
+      });
+
+      const baseLayers = createBaseLayers();
+      baseLayers.normal.addTo(addMap);
+
+      L.control.layers(
+        {
+          "通常地図": baseLayers.normal,
+          "衛星写真": baseLayers.satellite
+        },
+        null,
+        { collapsed: false }
+      ).addTo(addMap);
+
+      setupLongPress(addMap, (latlng) => {
+        placeTempPin(latlng);
+      });
+
+      initializedAddMap = true;
+    }
+
+    function placeTempPin(latlng) {
+      clearTempPin();
+      tempPinLatLng = latlng;
+      tempMarker = L.marker(latlng).addTo(addMap);
+      tempPinActions.style.display = "flex";
+      showMessage(addMessage, "仮ピンを置きました。「リストに情報を記入」か「ピンを削除」を選んでください。");
+    }
+
+    function clearTempPin() {
+      tempPinLatLng = null;
+      if (tempMarker && addMap) {
+        addMap.removeLayer(tempMarker);
+      }
+      tempMarker = null;
+      tempPinActions.style.display = "none";
+      clearMessage(addMessage);
+      tempInputSection.style.display = "none";
+      clearSaveForm();
+      clearMessage(saveMessage);
+    }
+
+    function setupLongPress(map, callback) {
+      let timer = null;
+      let startLatLng = null;
+
+      const start = (e) => {
+        startLatLng = e.latlng;
+        timer = setTimeout(() => {
+          callback(startLatLng);
+          timer = null;
+        }, 650);
+      };
+
+      const cancel = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+
+      map.on("mousedown", start);
+      map.on("touchstart", start);
+      map.on("mouseup", cancel);
+      map.on("touchend", cancel);
+      map.on("mousemove", cancel);
+      map.on("touchmove", cancel);
+      map.on("mouseout", cancel);
+    }
+
+    addressSearchBtn.addEventListener("click", async () => {
+      clearMessage(addMessage);
+      const keyword = addressSearchInput.value.trim();
+      if (!keyword) {
+        showMessage(addMessage, "住所を入力してください。", true);
+        return;
+      }
+
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(keyword)}`;
+        const res = await fetch(url, {
+          headers: {
+            "Accept": "application/json"
+          }
+        });
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          showMessage(addMessage, "住所が見つかりませんでした。別の表記で試してください。", true);
+          return;
+        }
+
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        addMap.setView([lat, lon], 19);
+        showMessage(addMessage, "住所周辺へ移動しました。家屋の位置を確認して長押しで仮ピンを置いてください。");
+      } catch (error) {
+        showMessage(addMessage, "住所検索に失敗しました。しばらくして再度お試しください。", true);
+      }
+    });
+
+    toInputBtn.addEventListener("click", async () => {
+      await loadPins();
+      showScreen("list");
+      tempInputSection.style.display = "block";
+    });
+
+    deleteTempPinBtn.addEventListener("click", () => {
+      clearTempPin();
+    });
+
+    // ===== 一覧 =====
+    function sortPins(arr) {
+      return [...arr].sort((a, b) => {
+        const g1 = Number(a.grade) || 0;
+        const g2 = Number(b.grade) || 0;
+        if (g1 !== g2) return g1 - g2;
+
+        const c1 = Number(a.class) || 0;
+        const c2 = Number(b.class) || 0;
+        if (c1 !== c2) return c1 - c2;
+
+        const n1 = Number(a.number) || 0;
+        const n2 = Number(b.number) || 0;
+        return n1 - n2;
+      });
+    }
+
+    function renderList() {
+      const sorted = sortPins(pinsData);
+
+      if (sorted.length === 0) {
+        pinList.innerHTML = `<div class="list-item">まだ登録がありません。</div>`;
+      } else {
+        pinList.innerHTML = sorted.map(pin => {
+          const selectedClass = pin.id === selectedPinId ? "selected" : "";
+          return `
+            <div class="list-item ${selectedClass}" data-id="${pin.id}">
+              <div><strong>${escapeHtml(pin.name || "")}</strong></div>
+              <div class="muted">${pin.grade || ""}年 ${pin.class || ""}組 ${pin.number || ""}番</div>
+              <div class="muted">${escapeHtml(pin.address || "")}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      pinList.querySelectorAll(".list-item[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          const id = item.dataset.id;
+          selectedPinId = id;
+          updateSelectedNameBadge();
+          showScreen("map");
+          zoomToSelectedPin();
+        });
+      });
+
+      if (tempPinLatLng) {
+        tempInputSection.style.display = "block";
+      } else {
+        tempInputSection.style.display = "none";
+      }
+    }
+
+    function zoomToSelectedPin() {
+      const pin = pinsData.find(p => p.id === selectedPinId);
+      if (!pin || !mapView) return;
+      mapView.setView([pin.lat, pin.lng], 19);
+      renderMapViewPins();
+    }
+
+    function clearSaveForm() {
+      nameInput.value = "";
+      addressInput.value = "";
+      gradeInput.value = "";
+      classInput.value = "";
+      numberInput.value = "";
+      memoInput.value = "";
+    }
+
+    savePinBtn.addEventListener("click", async () => {
+      clearMessage(saveMessage);
+
+      if (!tempPinLatLng) {
+        showMessage(saveMessage, "仮ピンがありません。先に地図上で長押ししてピンを置いてください。", true);
+        return;
+      }
+
+      const payload = {
+        name: nameInput.value.trim(),
+        address: addressInput.value.trim(),
+        grade: Number(gradeInput.value),
+        class: Number(classInput.value),
+        number: Number(numberInput.value),
+        memo: memoInput.value.trim(),
+        lat: tempPinLatLng.lat,
+        lng: tempPinLatLng.lng
+      };
+
+      if (!payload.name) {
+        showMessage(saveMessage, "氏名を入力してください。", true);
+        return;
+      }
+
+      if (!Number.isFinite(payload.grade) || !Number.isFinite(payload.class) || !Number.isFinite(payload.number)) {
+        showMessage(saveMessage, "学年・組・出席番号は数字で入力してください。", true);
+        return;
+      }
+
+      try {
+        await addDoc(pinsCollection, payload);
+        showMessage(saveMessage, "保存しました。");
+        clearSaveForm();
+        clearTempPin();
+        await loadPins();
+        showScreen("map");
+
+        const newest = findMatchingPin(payload);
+        if (newest) {
+          selectedPinId = newest.id;
+          zoomToSelectedPin();
+        } else {
+          renderMapViewPins();
+        }
+      } catch (error) {
+        showMessage(saveMessage, "保存に失敗しました。", true);
+      }
+    });
+
+    cancelTempInputBtn.addEventListener("click", () => {
+      tempInputSection.style.display = "none";
+    });
+
+    function findMatchingPin(payload) {
+      return pinsData.find(p =>
+        p.name === payload.name &&
+        Number(p.grade) === Number(payload.grade) &&
+        Number(p.class) === Number(payload.class) &&
+        Number(p.number) === Number(payload.number) &&
+        Number(p.lat) === Number(payload.lat) &&
+        Number(p.lng) === Number(payload.lng)
+      );
+    }
+
+    // ===== Firestore読込 =====
+    async function loadPins() {
+      const snapshot = await getDocs(pinsCollection);
+      pinsData = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+    }
+
+    // ===== 文字エスケープ =====
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    // 初期読込
+    await loadPins();
+  </script>
+</body>
+</html>
