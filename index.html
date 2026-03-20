@@ -273,6 +273,38 @@
         max-width:75%;
       }
     }
+
+    /* ボタン類を地図より前面に出す */
+    button,
+    input,
+    select,
+    textarea,
+    label,
+    .toolbar,
+    .topbar,
+    .menu,
+    .actions,
+    .panel {
+      position: relative;
+      z-index: 3000;
+      pointer-events: auto;
+    }
+
+    /* 地図本体はボタンより下に置く */
+    #map,
+    .leaflet-container {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 画面パネル自体も前面に */
+    .screen,
+    .view,
+    .page,
+    .section {
+      position: relative;
+      z-index: 2000;
+    }
   </style>
 </head>
 <body>
@@ -448,7 +480,6 @@
     const pinsCollection = collection(db, "pins");
 
     // ===== 合言葉 =====
-    // 必要なら変更してください
     const APP_PASSWORD = "1234";
 
     // ===== 画面要素 =====
