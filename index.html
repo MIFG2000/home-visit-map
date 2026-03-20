@@ -607,9 +607,12 @@
     });
 
     goListBtn.addEventListener("click", async () => {
-      await loadPins();
-      showScreen("list");
-    });
+  alert("一覧ボタンは押されています");
+  await loadPins();
+  alert("loadPins の後まで来ました");
+  showScreen("list");
+  alert("list画面を開きました");
+});
 
     backFromMapBtn.addEventListener("click", () => showScreen("home"));
     backFromAddBtn.addEventListener("click", () => showScreen("home"));
